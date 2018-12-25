@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+	<meta name="description" content="" />
+	<meta name="author" content="Ming" />
+	<link rel="icon" href="../static/favicon.ico" th:href="@{/favicon.ico}" />
+	<title>统计代码量</title>
+	<!-- Bootstrap core CSS -->
+	<link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css" />
+	<link rel="stylesheet" href="https://cdn.staticfile.org/bootstrap-select/1.13.3/css/bootstrap-select.min.css" />
+	<link rel="stylesheet" href="../static/css/gitlog.css" th:href="@{/css/gitlog.css}" />
+	<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+	<!--[if lt IE 9]>
+      <script src="https://cdn.bootcss.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+	<div class="container" style="max-width: 1140px;">
+		<div class="page-header">
+			<h1>统计代码量</h1>
+		</div>
+		<div class="form-inline">
+			<button type="button" id="pull" class="btn btn btn-primary" aria-describedby="pullHelp">Linux Pull</button>
+			<small id="pullHelp" class="form-text text-muted">linux系统可以使用此按钮拉取最新代码.</small>
+		</div>
+		<div class="row"><br /></div>
+		<div id="progress" class="progress hidden">
+			<div class="progress-bar progress-bar-striped" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="60"
+			 style="width: 0%;">
+				<span class="sr-only">80% Complete</span>
+			</div>
+		</div>
+
+		<div class="form-inline">
+			<span>&nbsp;查询方式：</span>
+			<select id="type" name="type" class="selectpicker" data-width="120px">
+				<option value="1">最近一天</option>
+				<option value="2">最近一周</option>
+				<option value="3" selected="selected">最近一月</option>
+				<option value="4">最近3个月</option>
+				<option value="0">自定义</option>
+			</select>
+			<span>&nbsp;开始日期：</span>
+			<input id="startDate" name="startDate" class="form-control" style="width:100px" type="text" value="" placeholder="2018-09-01" />
+			<span>&nbsp;结束日期：</span>
+			<input id="endDate" name="endDate" class="form-control" style="width:100px" type="text" value="" placeholder="2018-11-01" />
+			&nbsp;<button id="gitlog" type="button" class="btn btn btn-primary">开始统计</button>
+		</div>
+		<div class="row"><br /></div>
+		<table class="table">
+			<thead>
+				<tr>
+					<th class="col-md-2">用户名</th>
+					<th class="col-md-1">增加行(%)</th>
+					<th class="col-md-1">增加行</th>
+					<th class="col-md-1">删除行</th>
+					<th class="col-md-1">文件数</th>
+					<th class="col-md-2">首次提交时间</th>
+					<th class="col-md-2">最后提交时间</th>
+				</tr>
+			</thead>
+			<tr th:each="info:${gitlogList}">
+				<td th:text="${info.name}"></td>
+				<td th:text="${info.percent}"></td>
+				<td th:text="${info.add}"></td>
+				<td th:text="${info.delete}"></td>
+				<td th:text="${info.fileCount}"></td>
+				<td th:text="${info.firstCommit}"></td>
+				<td th:text="${info.lastCommit}"></td>
+			</tr>
+		</table>
+
+	</div>
+	<footer class="footer">
+		<div class="container">
+			<p class="text-muted">谢谢你的使用。</p>
+		</div>
+	</footer>
+	<script src="https://cdn.staticfile.org/jquery/1.12.4/jquery.js"></script>
+	<script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+	<script src="https://cdn.staticfile.org/bootstrap-select/1.13.3/js/bootstrap-select.min.js"></script>
+	<script src="https://cdn.staticfile.org/jquery.blockUI/2.70.0-2014.11.23/jquery.blockUI.min.js"></script>
+	<script type="text/javascript" th:inline="javascript">/*<![CDATA[*/ ctx = /*[[@{/}]]*/;
+    /*]]>*/console.info(ctx);</script>
+	<script src="../static/js/gitlog.js" th:src="@{/js/gitlog.js}"></script>
+</body>
+
+</html>
