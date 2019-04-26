@@ -5,11 +5,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -48,16 +46,14 @@ public class GitlogServiceImpl implements GitlogService {
         Map<String, GitlogRespBO> gitlogRespBOMap = new HashMap<String, GitlogRespBO>();
         int add_sum = 0;
 
-        File projects = new File(projectsDir.replaceAll("\\\\", "\\" + File.separator));
-        String[] projectNames = projects.list();
-        if (projectNames == null) {
-            projectNames = new String[] {};
-        }
-        for (String projectName : projectNames) {
+        List<File> projectFileList = new ArrayList<>();
+        File parent = new File(projectsDir.replaceAll("\\\\", "\\" + File.separator));
+        listProjectDir(projectFileList, parent);
 
-            String projectDir = projectsDir.replaceAll("\\\\", "\\" + File.separator) + File.separator + projectName;
+        for (File projectFile : projectFileList) {
+
             List<String> result = execGitlog(gitlogReqBO.getType(), gitlogReqBO.getStartDate(),
-                    gitlogReqBO.getEndDate(), gitlogReqBO.getAuthor(), projectDir);
+                    gitlogReqBO.getEndDate(), gitlogReqBO.getAuthor(), projectFile.getAbsolutePath());
 
             int add = 0, delete = 0, count = 0;
             for (int j = 0; j < result.size(); j++) {
@@ -123,8 +119,33 @@ public class GitlogServiceImpl implements GitlogService {
         return ResultBuilder.success(gitlogRespBOList);
     }
 
+    /**
+     * 找出目录下所有的git项目路径
+     * 
+     * @param projectDirList
+     * @param parentDir
+     */
+    private void listProjectDir(List<File> projectFileList, File parent) {
+        boolean isProject = false;
+        File[] children = parent.listFiles();
+        for (File child : children) {
+            // 含有git目录的文件夹，认为parent是一个git项目
+            if (".git".equals(child.getName())) {
+                projectFileList.add(parent);
+                isProject = true;
+                break;
+            }
+        }
+        // 不是git项目的情况下，循环递归下面的目录
+        if (!isProject) {
+            for (File child : children) {
+                listProjectDir(projectFileList, child);
+            }
+        }
+    }
+
     private List<String> execGitlog(String type, String startDate, String endDate, String author, String gitProject) {
-        String command = "git log --pretty=format:\"%cn;%ad;%H\" --numstat --date=iso";
+        String command = "git log --pretty=format:\"%ce;%ad;%H\" --numstat --date=iso";
         switch (Integer.parseInt(type)) {
         case 0:
             if (StringUtils.isNotEmpty(startDate)) {
@@ -159,62 +180,49 @@ public class GitlogServiceImpl implements GitlogService {
         if (remain > 0) {
             return ResultBuilder.error("wait for last task");
         }
-        Set<String> projectNameSet = new HashSet<>();
-        File projects = new File(projectsDir.replaceAll("\\\\", "\\" + File.separator));
-        String[] projectNameArray = projects.list();
-        if (projectNameArray == null) {
-            projectNameArray = new String[] {};
-        }
-        for (int i = 0; i < projectNameArray.length; i++) {
-            projectNameSet.add(projectNameArray[i]);
-        }
         String[] urlArray = gitUrls.split(",");
-        for (int i = 0; i < urlArray.length; i++) {
-            String url = urlArray[i];
-            String projectName = url.substring(url.lastIndexOf("/") + 1, url.lastIndexOf("."));
-            projectNameSet.add(projectName);
-        }
+        remain = urlArray.length;
 
-        remain = projectNameSet.size();
         new Thread() {
             public void run() {
-                for (String projectName : projectNameSet) {
-                    log.debug("-------------start pull " + projectName + "-------------");
-                    String commandDir = projectsDir.replaceAll("\\\\", "\\" + File.separator) + File.separator
-                            + projectName;
-                    String[] commandArray = initCommands.split(",");
-
-                    if (!new File(commandDir).exists()) {
-                        String url = gitUrlByName(projectName);
+                for (String url : urlArray) {
+                    log.debug("-------------start pull " + url + "-------------");
+                    String projectDir = getDirByUrl(url);
+                    if (!new File(projectDir).exists()) {
                         cloneProject(url);
+                    } else {
+                        pullProject(url);
                     }
-
-                    String[] pullCommandArray = ArrayUtils.add(commandArray, "git pull");
-                    ProcessUtil.exec(pullCommandArray, null, commandDir);
                     remain--;
-                    log.debug("-------------end pull " + projectName + "-------------");
+                    log.debug("-------------end pull " + url + "-------------");
                 }
                 remain = 0;
             }
         }.start();
+
         return ResultBuilder.success(remain);
     }
 
-    public String gitUrlByName(String name) {
-        String[] urlArray = gitUrls.split(",");
-        for (int i = 0; i < urlArray.length; i++) {
-            if (urlArray[i].contains("/" + name + ".git")) {
-                return urlArray[i];
-            }
-        }
-        return null;
+    private String getDirByUrl(String url) {
+        String dir = new String(url);
+        dir = dir.substring(dir.indexOf("/") + 1);
+        dir = dir.substring(dir.indexOf("/") + 1);
+        dir = dir.substring(dir.indexOf("/") + 1);
+        dir = dir.substring(0, dir.lastIndexOf("."));
+        return (projectsDir + "/" + dir).replaceAll("\\\\", "\\" + File.separator);
     }
 
-    public void cloneProject(String url) {
+    private void cloneProject(String url) {
         String commandDir = projectsDir.replaceAll("\\\\", "\\" + File.separator);
         String[] commandArray = initCommands.split(",");
-        String[] cloneCommandArray = ArrayUtils.add(commandArray, "git clone " + url);
+        String[] cloneCommandArray = ArrayUtils.add(commandArray, "git clone " + url + " " + getDirByUrl(url));
         ProcessUtil.exec(cloneCommandArray, null, commandDir);
+    }
+
+    private void pullProject(String url) {
+        String[] commandArray = initCommands.split(",");
+        String[] pullCommandArray = ArrayUtils.add(commandArray, "git pull");
+        ProcessUtil.exec(pullCommandArray, null, getDirByUrl(url));
     }
 
     public Result<Integer> getRemain() {
